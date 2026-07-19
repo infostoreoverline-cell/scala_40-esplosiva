@@ -446,6 +446,7 @@ function checkWinner() {
   if (active.length <= 1) {
     // Partita finita!
     const winner = active.length === 1 ? active[0] : g.players.reduce((a, b) => a.total < b.total ? a : b);
+    saveFinishedGame();
     showWinnerModal(winner);
   }
 }
@@ -471,12 +472,13 @@ function showWinnerModal(winner) {
 }
 
 function saveGameAndReset() {
-  saveFinishedGame();
   backToSetup();
 }
 
 function saveFinishedGame() {
-  if (!STATE.game) return;
+  if (!STATE.game || STATE.game.saved) return;
+  STATE.game.saved = true;
+  
   const g = STATE.game;
   const active = g.players.filter(p => !p.eliminated);
   const winner = active.length === 1 ? active[0] : g.players.reduce((a, b) => a.total < b.total ? a : b);
@@ -542,6 +544,7 @@ function forceEndGame() {
   const g = STATE.game;
   const activeSorted = [...g.players].sort((a, b) => a.total - b.total);
   const winner = activeSorted[0];
+  saveFinishedGame();
   showWinnerModal(winner);
 }
 
