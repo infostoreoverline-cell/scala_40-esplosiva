@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scala 40 Esplosiva 🃏</title>
+  <meta name="description" content="Webapp per il conteggio dei punti di Scala 40 con storico vittorie, gestione giocatori e musica YouTube." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- CONFETTI CANVAS -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-icon">🃏</div>
+    <div>
+      <span class="logo-text">Scala 40</span>
+      <span class="logo-sub">Esplosiva</span>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" id="nav-home" onclick="showView('home')" title="Nuova Partita">
+      🎮 <span>Partita</span>
+    </button>
+    <button class="nav-btn" id="nav-storico" onclick="showView('storico')" title="Storico">
+      🏆 <span>Storico</span>
+    </button>
+    <button class="nav-btn" id="nav-giocatori" onclick="showView('giocatori')" title="Giocatori">
+      👥 <span>Giocatori</span>
+    </button>
+    <button class="nav-btn music-btn" id="nav-music" onclick="toggleMusic()" title="Musica">
+      🎵 <span>Musica</span>
+    </button>
+  </nav>
+</header>
+
+<!-- ══════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════ -->
+<div class="app-container">
+  <main class="main-content">
+
+    <!-- ── VIEW: HOME (Setup + Partita) ── -->
+    <section class="view active fade-in" id="view-home">
+
+      <!-- SETUP PARTITA -->
+      <div id="setup-panel">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title"><span class="icon">🎴</span> Nuova Partita</h1>
+            <p class="section-sub">Seleziona i giocatori e configura la partita</p>
+          </div>
+        </div>
+
+        <div class="setup-grid">
+          <!-- SELEZIONE GIOCATORI -->
+          <div class="card">
+            <div class="section-header" style="margin-bottom:14px">
+              <h2 class="section-title" style="font-size:1.1rem"><span class="icon">👥</span> Giocatori</h2>
+              <span class="badge badge-purple" id="selected-count-badge">0 selezionati</span>
+            </div>
+
+            <div class="input-group" style="margin-bottom:10px">
+              <input type="text" id="quick-player-input" placeholder="Nome giocatore..." maxlength="20" />
+              <button class="btn btn-primary btn-sm" onclick="quickAddPlayer()" id="quick-add-btn">＋ Aggiungi</button>
+            </div>
+
+            <div class="player-roster" id="player-roster">
+              <div class="empty-state">
+                <div class="empty-icon">👤</div>
+                <div class="empty-title">Nessun giocatore</div>
+                <div class="empty-sub">Aggiungine uno sopra o vai nella sezione Giocatori</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- IMPOSTAZIONI -->
+          <div class="card">
+            <h2 class="section-title" style="font-size:1.1rem;margin-bottom:18px"><span class="icon">⚙️</span> Impostazioni</h2>
+
+            <div class="settings-row">
+              <span class="settings-label">Punteggio limite eliminazione</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="number" id="score-limit" value="100" min="50" max="500" step="5"
+                  style="width:80px;text-align:center;font-weight:700" />
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <span class="settings-label">Conteggio Asso</span>
+              <select id="ace-value" style="width:auto">
+                <option value="11">11 punti</option>
+                <option value="1">1 punto</option>
+              </select>
+            </div>
+
+            <div class="settings-row">
+              <span class="settings-label">Figura (J/Q/K)</span>
+              <div class="settings-val">10 punti</div>
+            </div>
+
+            <div class="settings-row">
+              <span class="settings-label">Chi va a segno per primo</span>
+              <div class="settings-val" style="color:var(--green-400)">0 punti</div>
+            </div>
+
+            <div class="settings-row">
+              <span class="settings-label">Regola scala minima</span>
+              <div class="settings-val">3 carte</div>
+            </div>
+
+            <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
+              <button class="btn btn-primary btn-lg pulse-glow" id="start-game-btn" onclick="startGame()" disabled>
+                🚀 Inizia Partita
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="showView('giocatori')">
+                ➕ Gestisci tutti i giocatori
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARTITA IN CORSO -->
+      <div id="game-panel" style="display:none">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title"><span class="icon">🃏</span> Partita in corso</h1>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="undoLastRound()" id="undo-btn">↩ Annulla mano</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmEndGame()">🚩 Termina partita</button>
+          </div>
+        </div>
+
+        <!-- STATUS BAR -->
+        <div class="game-status-bar">
+          <div class="status-item">
+            <span class="status-label">Mano</span>
+            <span class="status-value" id="round-display">1</span>
+          </div>
+          <div class="status-divider"></div>
+          <div class="status-item">
+            <span class="status-label">Giocatori attivi</span>
+            <span class="status-value" id="active-players-display">-</span>
+          </div>
+          <div class="status-divider"></div>
+          <div class="status-item">
+            <span class="status-label">Limite punti</span>
+            <span class="status-value" id="limit-display">100</span>
+          </div>
+          <div class="status-divider"></div>
+          <div class="status-item">
+            <span class="status-label">Leader</span>
+            <span class="status-value" id="leader-display" style="color:var(--gold-400)">-</span>
+          </div>
+        </div>
+
+        <!-- TABELLONE PUNTEGGI -->
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:20px">
+          <div class="score-table-wrapper">
+            <table class="score-table" id="score-table">
+              <thead>
+                <tr>
+                  <th>Pos.</th>
+                  <th>Giocatore</th>
+                  <th>Totale</th>
+                  <th id="rounds-header">Mano 1</th>
+                </tr>
+              </thead>
+              <tbody id="score-tbody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- INSERIMENTO PUNTEGGI MANO -->
+        <div class="round-input-area">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <h3 style="font-family:'Cinzel',serif;font-size:1rem;font-weight:600;color:var(--text-primary)">
+              📝 Inserisci punteggi <span id="round-input-label">Mano 1</span>
+            </h3>
+            <button class="btn btn-ghost btn-sm" onclick="calcPoints()" title="Calcolatore punti carte">
+              🧮 Calcolatore
+            </button>
+          </div>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px">
+            Inserisci i punti rimasti in mano a ogni giocatore (0 = ha chiuso)
+          </p>
+          <div class="round-inputs" id="round-inputs"></div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+            <button class="btn btn-ghost" onclick="clearRoundInputs()">✖ Cancella</button>
+            <button class="btn btn-primary" onclick="submitRound()">✅ Conferma mano</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── VIEW: STORICO ── -->
+    <section class="view fade-in" id="view-storico">
+      <div class="section-header">
+        <div>
+          <h1 class="section-title"><span class="icon">🏆</span> Tabellone Vittorie</h1>
+          <p class="section-sub">Storico di tutte le partite giocate</p>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="confirmClearHistory()">🗑 Azzera storico</button>
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div id="leaderboard-container" class="leaderboard-grid"></div>
+
+      <!-- HISTORY LIST -->
+      <div style="margin-top:32px">
+        <h2 class="section-title" style="font-size:1.1rem;margin-bottom:16px">
+          <span class="icon">📋</span> Partite recenti
+        </h2>
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </section>
+
+    <!-- ── VIEW: GIOCATORI ── -->
+    <section class="view fade-in" id="view-giocatori">
+      <div class="section-header">
+        <div>
+          <h1 class="section-title"><span class="icon">👥</span> Gestione Giocatori</h1>
+          <p class="section-sub">Aggiungi e gestisci i tuoi giocatori abituali</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px">
+        <h2 style="font-family:'Cinzel',serif;font-size:1rem;font-weight:600;margin-bottom:14px;color:var(--text-primary)">
+          ➕ Aggiungi giocatore
+        </h2>
+        <div class="input-group">
+          <input type="text" id="new-player-name" placeholder="Nome del giocatore..." maxlength="20" />
+          <button class="btn btn-primary" onclick="addPlayer()">Aggiungi</button>
+        </div>
+      </div>
+
+      <div class="players-grid" id="players-grid"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MUSIC SIDEBAR
+══════════════════════════════════════════ -->
+<aside class="music-sidebar" id="music-sidebar">
+  <div class="music-title">🎵 Playlist Musica</div>
+  <p style="font-size:0.75rem;color:var(--text-muted)">Clicca su una playlist per aprirla su YouTube</p>
+
+  <div class="music-playlist-list" id="playlist-list"></div>
+
+  <div class="music-add-form">
+    <div style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px">➕ Aggiungi playlist</div>
+    <input type="text" id="playlist-name-input" placeholder="Nome (es. Lo-fi vibes)" />
+    <input type="url" id="playlist-url-input" placeholder="URL YouTube playlist..." />
+    <button class="btn btn-gold btn-sm" onclick="addPlaylist()" style="width:100%">Salva playlist</button>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════ -->
+
+<!-- MODAL: Winner -->
+<div class="modal-backdrop" id="winner-modal">
+  <div class="modal">
+    <div class="winner-modal-content">
+      <div class="winner-trophy">🏆</div>
+      <div class="winner-name-display" id="winner-name">-</div>
+      <div class="winner-score-display" id="winner-score-sub">Ha vinto la partita!</div>
+      <div class="winner-scores-list" id="winner-scores-list"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('winner-modal');backToSetup()">🔙 Torna al menu</button>
+      <button class="btn btn-gold" onclick="closeModal('winner-modal');saveGameAndReset()">✨ Nuova partita</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Conferma fine partita -->
+<div class="modal-backdrop" id="end-game-modal">
+  <div class="modal">
+    <div class="modal-title">🚩 Termina partita?</div>
+    <div class="modal-sub">Vuoi terminare la partita in corso? Sarà salvata nello storico.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('end-game-modal')">Annulla</button>
+      <button class="btn btn-danger" onclick="forceEndGame()">Sì, termina</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Conferma cancella storico -->
+<div class="modal-backdrop" id="clear-history-modal">
+  <div class="modal">
+    <div class="modal-title">⚠️ Azzera storico?</div>
+    <div class="modal-sub">Questa azione eliminerà tutte le partite e le statistiche. Non è reversibile.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('clear-history-modal')">Annulla</button>
+      <button class="btn btn-danger" onclick="clearHistory()">Sì, cancella tutto</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Calcolatore punti -->
+<div class="modal-backdrop" id="calc-modal">
+  <div class="modal">
+    <div class="modal-title">🧮 Calcolatore Punti</div>
+    <div class="modal-sub">Conta le carte rimaste in mano</div>
+    <div id="calc-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px">N° assi (11 pt)</label>
+          <input type="number" id="calc-aces" value="0" min="0" max="4" style="text-align:center" />
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px">N° figure (10 pt)</label>
+          <input type="number" id="calc-faces" value="0" min="0" max="12" style="text-align:center" />
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px">N° 10 (10 pt)</label>
+          <input type="number" id="calc-tens" value="0" min="0" max="4" style="text-align:center" />
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px">Altre carte (valore face)</label>
+          <input type="number" id="calc-others" value="0" min="0" style="text-align:center" />
+        </div>
+      </div>
+      <div style="background:var(--bg-panel);border-radius:var(--radius-md);padding:16px;text-align:center">
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px">TOTALE PUNTI</div>
+        <div style="font-family:'Cinzel',serif;font-size:2.5rem;font-weight:900;color:var(--purple-400)" id="calc-total">0</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('calc-modal')">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
